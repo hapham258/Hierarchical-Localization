@@ -20,7 +20,7 @@ def run(args):
     sift_sfm = dataset / "3D-models/aachen_v_1_1"
 
     outputs = args.outputs  # where everything will be saved
-    reference_sfm = outputs / "sfm_superpoint+superglue"  # the SfM model we will build
+    reference_sfm = outputs / "sfm_superpoint+lightglue"  # the SfM model we will build
     sfm_pairs = (
         outputs / f"pairs-db-covis{args.num_covis}.txt"
     )  # top-k most covisible in SIFT model
@@ -28,7 +28,7 @@ def run(args):
         outputs / f"pairs-query-netvlad{args.num_loc}.txt"
     )  # top-k retrieved by NetVLAD
     results = (
-        outputs / f"Aachen-v1.1_hloc_superpoint+superglue_netvlad{args.num_loc}.txt"
+        outputs / f"Aachen-v1.1_hloc_superpoint+lightglue_netvlad{args.num_loc}.txt"
     )
 
     # list the standard configurations available
@@ -37,8 +37,8 @@ def run(args):
 
     # pick one of the configurations for extraction and matching
     retrieval_conf = extract_features.confs["netvlad"]
-    feature_conf = extract_features.confs["superpoint_max"]
-    matcher_conf = match_features.confs["superglue"]
+    feature_conf = extract_features.confs["superpoint_aachen"]
+    matcher_conf = match_features.confs["superpoint+lightglue"]
 
     features = extract_features.main(feature_conf, images, outputs)
 
@@ -71,7 +71,7 @@ def run(args):
         loc_matches,
         results,
         covisibility_clustering=False,
-    )  # not required with SuperPoint+SuperGlue
+    )  # not required with SuperPoint+LightGlue
 
 
 if __name__ == "__main__":
