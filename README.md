@@ -4,6 +4,7 @@ conda create -n lightglue_all python=3.11
 conda activate hloc_all
 python -m pip install -e .
 pip install -U ipywidgets tqdm jupyter
+pip install huggingface_hub safetensors
 ```
 Then run `demo.ipynb`.
 
