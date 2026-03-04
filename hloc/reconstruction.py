@@ -2,7 +2,9 @@ import argparse
 import multiprocessing
 import shutil
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
+import numpy as np
+from scipy.spatial.transform import Rotation as R
 
 import pycolmap
 import tqdm
@@ -48,6 +50,29 @@ def import_images(
             options=options,
         )
 
+
+def inject_pose_priors(database_path, image_ids, pose_priors):
+    if pose_priors is None:
+        return
+    logger.info("Injecting STRONG pose priors (converted from Tcw)...")
+    strong_cov = np.eye(3, dtype=np.float64) * 1e-3
+    with pycolmap.Database.open(database_path) as db:
+        for name, (qvec, tvec) in pose_priors.items():
+            if name not in image_ids:
+                logger.warning(f"{name} not found in database.")
+                continue
+            image_id = image_ids[name]
+            qw, qx, qy, qz = qvec
+            rot = R.from_quat([qx, qy, qz, qw])
+            Rcw = rot.as_matrix()
+            t = np.asarray(tvec, dtype=np.float64)
+            C = -Rcw.T @ t
+            pose_prior = pycolmap.PosePrior(
+                position=C,
+                position_covariance=strong_cov
+            )
+            db.write_pose_prior(image_id, pose_prior)
+    logger.info("Pose priors successfully written.")
 
 def get_image_ids(database_path: Path) -> Dict[str, int]:
     images = {}
@@ -152,6 +177,7 @@ def main(
     image_list: Optional[List[str]] = None,
     image_options: Optional[Dict[str, Any]] = None,
     mapper_options: Optional[Dict[str, Any]] = None,
+    pose_priors: Optional[Dict[str, Tuple[np.ndarray, np.ndarray]]] = None,
 ) -> pycolmap.Reconstruction:
     assert features.exists(), features
     assert pairs.exists(), pairs
@@ -166,6 +192,8 @@ def main(
     create_empty_db(database)
     import_images(image_dir, database, camera_mode, image_list, image_options)
     image_ids = get_image_ids(database)
+    if pose_priors is not None:
+        inject_pose_priors(database, image_ids, pose_priors)
     with pycolmap.Database.open(database) as db:
         import_features(image_ids, db, features)
         import_matches(
